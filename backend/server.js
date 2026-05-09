@@ -2,6 +2,9 @@ import { DurableObject } from "cloudflare:workers";
 
 const DIRECTORY_OBJECT_NAME = "global-lobby-directory";
 const MAX_PLAYERS = 12;
+const STATIC_ASSET_PATHS = new Set(["/", "/index.html", "/main.js", "/frontend/multiplayer-client.js", "/.nojekyll", "/favicon.ico"]);
+const STATIC_ASSET_PREFIXES = ["/assets/", "/images/", "/models/", "/sounds/", "/textures/"];
+const PROTECTED_STATIC_PREFIXES = ["/backend/", "/node_modules/", "/.git"];
 
 function now() { return Date.now(); }
 function randomId(bytes = 16) {
@@ -69,6 +72,33 @@ async function parse(response) {
   return data;
 }
 function sortPlayers(players) { return Object.values(players).sort((a, b) => a.joinedSeq - b.joinedSeq); }
+function isProtectedStaticPath(pathname) { return PROTECTED_STATIC_PREFIXES.some((prefix) => pathname.startsWith(prefix)); }
+function isKnownStaticAsset(pathname) { return STATIC_ASSET_PATHS.has(pathname) || STATIC_ASSET_PREFIXES.some((prefix) => pathname.startsWith(prefix)); }
+function isBrowserRoute(pathname) { return !pathname.split("/").pop().includes("."); }
+function shouldServeFrontend(request, pathname) {
+  if (!(request.method === "GET" || request.method === "HEAD")) return false;
+  if (pathname.startsWith("/api/") || pathname === "/ws" || isProtectedStaticPath(pathname)) return false;
+  return isKnownStaticAsset(pathname) || isBrowserRoute(pathname);
+}
+async function serveFrontend(request, env, url, origin) {
+  if (!env.ASSETS) {
+    return json({ ok: false, error: "Static assets are not configured for this Worker." }, 500, origin);
+  }
+
+  const explicitAsset = isKnownStaticAsset(url.pathname);
+  const assetPath = explicitAsset ? (url.pathname === "/" ? "/index.html" : url.pathname) : "/index.html";
+  const assetUrl = new URL(request.url);
+  assetUrl.pathname = assetPath;
+  if (assetPath === "/index.html") assetUrl.search = "";
+
+  const response = await env.ASSETS.fetch(new Request(assetUrl, request));
+  if (response.status !== 404 || explicitAsset) return response;
+
+  const fallbackUrl = new URL(request.url);
+  fallbackUrl.pathname = "/index.html";
+  fallbackUrl.search = "";
+  return env.ASSETS.fetch(new Request(fallbackUrl, request));
+}
 
 class LobbyService {
   constructor(env) { this.env = env; }
@@ -354,6 +384,7 @@ export default {
       if (request.method === "POST" && url.pathname === "/api/lobbies/restore") return json(await lobbyService.restoreSession(await readJson(request)), 200, origin);
       if (request.method === "POST" && url.pathname === "/api/lobbies/leave") return json(await lobbyService.leaveLobby(await readJson(request)), 200, origin);
       if (request.method === "GET" && url.pathname === "/ws") return lobbyService.connectSocket(request, url.searchParams.get("lobbyId"), url.searchParams.get("sessionToken"));
+      if (shouldServeFrontend(request, url.pathname)) return serveFrontend(request, env, url, origin);
       return json({ ok: false, error: "Not found." }, 404, origin);
     } catch (error) {
       return json({ ok: false, error: error.message || "Request failed." }, 400, origin);

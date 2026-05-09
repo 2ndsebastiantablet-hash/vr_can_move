@@ -13,6 +13,7 @@ const state = {
   client: null,
   snapshot: null,
   avatars: new Map(),
+  menuKey: null,
   lastPush: 0,
   lastSendLog: 0,
   lastDebugLog: 0,
@@ -23,6 +24,13 @@ function $(id) {
   return document.getElementById(id);
 }
 
+function getMenuKey(snapshot) {
+  if (!snapshot) return "no-lobby";
+  const lobby = snapshot.lobby;
+  const playerCount = snapshot.players.filter((player) => !player.disconnectedAt).length;
+  return `${lobby.id}:${lobby.code}:${lobby.isPrivate}:${playerCount}`;
+}
+
 function client() {
   if (!state.client) {
     state.client = new MultiplayerClient({
@@ -31,7 +39,11 @@ function client() {
       onStatus: setStatus,
       onSnapshot: (snapshot) => {
         state.snapshot = snapshot;
-        renderMenu();
+        const nextMenuKey = getMenuKey(snapshot);
+        if (state.menuKey !== nextMenuKey) {
+          state.menuKey = nextMenuKey;
+          renderMenu();
+        }
         renderPlayers(snapshot);
       }
     });
@@ -109,7 +121,8 @@ function renderMenu() {
 
   if (state.snapshot) {
     const lobby = state.snapshot.lobby;
-    info.setAttribute("value", `${lobby.isPrivate ? "Private" : "Public"} lobby ${lobby.code}\nPlayers: ${state.snapshot.players.length}`);
+    const playerCount = state.snapshot.players.filter((player) => !player.disconnectedAt).length;
+    info.setAttribute("value", `${lobby.isPrivate ? "Private" : "Public"} lobby ${lobby.code}\nPlayers: ${playerCount}`);
     makeButton(panel, "leave-lobby", "Leave lobby", "0 0.25 0.04", "leave", 1.8, "#6b2737");
     makeButton(panel, "refresh-lobby", "Refresh lobby", "0 -0.12 0.04", "refresh", 1.8);
   } else {
@@ -135,10 +148,6 @@ function renderMenu() {
   }
 
   menu.appendChild(panel);
-  menu.addEventListener("click", (event) => {
-    const target = event.target.closest?.("[data-action]");
-    if (target) action(target.dataset.action);
-  }, { once: true });
 }
 
 async function action(name) {
@@ -151,9 +160,11 @@ async function action(name) {
       hideMenuAfterLobbyJoin();
     } else if (name === "list") {
       await client().listPublicLobbies();
+      state.menuKey = null;
       renderMenu();
     } else if (name === "random-code") {
       $("join-code")?.setAttribute("value", randomCode());
+      state.menuKey = null;
       renderMenu();
     } else if (name === "join") {
       const code = $("join-code")?.getAttribute("value") || "";
@@ -167,6 +178,7 @@ async function action(name) {
     } else if (name === "leave") {
       client().leave();
       state.snapshot = null;
+      state.menuKey = null;
       renderMenu();
     }
   } catch (error) {
@@ -297,7 +309,7 @@ function renderPlayers(snapshot) {
     updateAvatarTarget(avatar, player);
   }
 
-  for (const [id, avatar] of state.avatars.entries()) {
+  for (const [id] of state.avatars.entries()) {
     if (!live.has(id)) removeRemoteAvatar(id, "snapshot removal");
   }
 }
@@ -437,14 +449,21 @@ window.addEventListener("DOMContentLoaded", () => {
   if (params.get("restore") !== "1") {
     sessionStorage.removeItem("vr_can_move_session");
   }
+  $("join-code")?.setAttribute("value", randomCode());
+  $("vr-menu-root")?.addEventListener("click", (event) => {
+    const target = event.target.closest?.("[data-action]");
+    if (target) action(target.dataset.action);
+  });
   renderMenu();
-  client().listPublicLobbies().then(renderMenu).catch(() => {});
+  client().listPublicLobbies().then(() => {
+    state.menuKey = null;
+    renderMenu();
+  }).catch(() => {});
   if (params.get("restore") === "1") {
     client().restore().then((snap) => {
       if (snap) setStatus("Session restored.");
     }).catch(() => {});
   }
-  $("join-code")?.setAttribute("value", randomCode());
   for (const id of ["left-controller", "right-controller"]) {
     const controller = $(id);
     controller?.addEventListener("triggerdown", () => selected(controller));

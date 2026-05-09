@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VR Can Move Multiplayer</title>
+  <!-- Scene base: feeble/templates/simple-vr-scene at 28a426aa6ade789320e2202cfa8d2fe61b46b539. -->
+  <!-- Multiplayer base: fly-game/multiplayer-template at 389610aa69a18eb56eadb228520a5f4dfd33109d. -->
+  <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+  <script type="module" src="./main.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; background: #101114; }
+    #note { position: fixed; top: 12px; left: 12px; z-index: 10; color: white; background: rgba(0,0,0,.68); padding: 10px 12px; border-radius: 8px; font-size: 14px; max-width: 340px; line-height: 1.45; }
+  </style>
+</head>
+<body>
+  <div id="note">Open in Meta Quest Browser, press Enter VR, then use either controller laser to pick a lobby.</div>
+  <a-scene renderer="antialias: true; colorManagement: true" webxr="optionalFeatures: local-floor, bounded-floor" vr-mode-ui="enabled: true" background="color: #BFDDF2">
+    <a-entity light="type: ambient; intensity: 0.65"></a-entity>
+    <a-entity light="type: directional; intensity: 0.95" position="3 6 2"></a-entity>
+    <a-sky color="#BFDDF2"></a-sky>
+    <a-entity id="player-rig" position="0 0 4" quest-move="leftController: #left-controller; rightController: #right-controller; camera: #player-camera">
+      <a-camera id="player-camera" position="0 1.6 0" wasd-controls-enabled="false">
+        <a-entity id="vr-menu-root" position="0 -0.08 -2.15"></a-entity>
+        <a-cursor id="gaze-cursor" raycaster="objects: .vr-clickable; far: 5" fuse="false" material="color: #111111; shader: flat" geometry="primitive: ring; radiusInner: 0.012; radiusOuter: 0.02"></a-cursor>
+      </a-camera>
+      <a-entity id="left-controller" position="-0.25 1.2 -0.5" oculus-touch-controls="hand: left" hand-pose="hand: left" raycaster="objects: .vr-clickable; far: 8" line="color: #FFFFFF; opacity: 0.8"></a-entity>
+      <a-entity id="right-controller" position="0.25 1.2 -0.5" oculus-touch-controls="hand: right" hand-pose="hand: right" raycaster="objects: .vr-clickable; far: 8" line="color: #FFFFFF; opacity: 0.8"></a-entity>
+    </a-entity>
+    <a-plane position="0 0 0" rotation="-90 0 0" width="32" height="32" color="#6CAE75" roughness="1"></a-plane>
+    <a-box position="-2 0.5 -2.5" rotation="0 32 0" width="1" height="1" depth="1" color="#F28749"></a-box>
+    <a-sphere position="1.4 1.1 -4" radius="0.7" color="#536DFE"></a-sphere>
+    <a-cylinder position="3 0.75 -1.5" radius="0.45" height="1.5" color="#FFD166"></a-cylinder>
+    <a-torus position="0 1.4 -6" radius="0.75" radius-tubular="0.08" color="#1FA896" rotation="90 0 0"></a-torus>
+    <a-plane position="0 2.8 -3" width="4.8" height="0.9" color="#FFFFFF"><a-text value="VR Can Move" position="0 0 0.01" color="#111111" width="4.2" align="center"></a-text></a-plane>
+    <a-entity id="remote-players"></a-entity>
+  </a-scene>
+</body>
+</html>

@@ -3,7 +3,7 @@ main = "backend/server.js"
 compatibility_date = "2026-05-09"
 
 [assets]
-directory = "."
+directory = "./public"
 binding = "ASSETS"
 run_worker_first = true
 

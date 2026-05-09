@@ -282,19 +282,73 @@ function placeHand(hand, data, rig) {
 }
 function curlFingers(fingers, pose) { const curl = Math.max(Number(pose.grip || 0), Number(pose.trigger || 0) * .75); fingers.forEach((f, i) => { f.object3D.rotation.x = THREE.MathUtils.degToRad(15 + curl * 72 + (i === 0 ? Number(pose.thumb || 0) * 25 : 0)); }); }
 
-function selected(controller) {
-  const hit = controller.components.raycaster?.intersections?.[0]?.object?.el;
-  let el = hit;
+const menuRaycaster = new THREE.Raycaster();
+const menuRayOrigin = new THREE.Vector3();
+const menuRayDirection = new THREE.Vector3();
+const menuControllerRotation = new THREE.Quaternion();
+
+function clickableFrom(el) {
   while (el && !el.classList?.contains("vr-clickable")) el = el.parentElement;
-  if (el?.dataset.action) action(el.dataset.action);
+  return el?.dataset?.action ? el : null;
+}
+
+function cachedControllerHit(controller) {
+  for (const hit of controller.components.raycaster?.intersections || []) {
+    const el = clickableFrom(hit.object?.el);
+    if (el) return el;
+  }
+  return null;
+}
+
+function manualControllerHit(controller) {
+  const buttons = [...document.querySelectorAll(".vr-clickable")];
+  if (!buttons.length) return null;
+
+  document.querySelector("a-scene")?.object3D.updateMatrixWorld(true);
+  controller.object3D.updateMatrixWorld(true);
+  controller.object3D.getWorldPosition(menuRayOrigin);
+  controller.object3D.getWorldQuaternion(menuControllerRotation);
+  menuRayDirection.set(0, 0, -1).applyQuaternion(menuControllerRotation).normalize();
+  menuRaycaster.set(menuRayOrigin, menuRayDirection);
+  menuRaycaster.far = 8;
+
+  const targets = [];
+  for (const button of buttons) {
+    button.object3D.traverse((object) => {
+      if (object.isMesh) targets.push(object);
+    });
+  }
+
+  const hit = menuRaycaster.intersectObjects(targets, false)[0];
+  return clickableFrom(hit?.object?.el);
+}
+
+function flashButton(el) {
+  const color = el.getAttribute("color") || "#235C75";
+  el.setAttribute("color", "#FFFFFF");
+  setTimeout(() => {
+    if (el.isConnected) el.setAttribute("color", color);
+  }, 90);
+}
+
+function selected(controller) {
+  const el = cachedControllerHit(controller) || manualControllerHit(controller);
+  if (!el?.dataset.action) return;
+  flashButton(el);
+  action(el.dataset.action);
 }
 function pushLoop(time) { if (state.client?.snapshot && time - state.lastPush > 95) { state.client.pushState(localState(), { color: state.color }); state.lastPush = time; } requestAnimationFrame(pushLoop); }
 
 window.addEventListener("DOMContentLoaded", () => {
   localStorage.setItem("vr_can_move_api", state.apiBase);
   const menu = document.getElementById("vr-menu-root");
-  menu.addEventListener("click", (event) => { let el = event.target; while (el && !el.classList?.contains("vr-clickable")) el = el.parentElement; if (el?.dataset.action) action(el.dataset.action); });
-  for (const id of ["left-controller", "right-controller"]) { const c = document.getElementById(id); c.addEventListener("triggerdown", () => selected(c)); c.addEventListener("abuttondown", () => selected(c)); c.addEventListener("xbuttondown", () => selected(c)); }
+  menu.addEventListener("click", (event) => { const el = clickableFrom(event.target); if (el?.dataset.action) action(el.dataset.action); });
+  for (const id of ["left-controller", "right-controller"]) {
+    const c = document.getElementById(id);
+    c.addEventListener("triggerdown", () => selected(c));
+    c.addEventListener("abuttondown", () => selected(c));
+    c.addEventListener("xbuttondown", () => selected(c));
+  }
   renderMenu();
   client().restore().then((snap) => { if (snap) setStatus("Session restored."); }).catch(() => {});
   client().listPublicLobbies().then((lobbies) => { state.publicLobbies = lobbies; renderMenu(); }).catch(() => {});

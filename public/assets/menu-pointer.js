@@ -167,10 +167,18 @@ function logSelectAttempt(hand, eventName) {
   return button;
 }
 
+function activateMenuButton(button) {
+  if (!button) return;
+  button.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+}
+
 function setupControllerSelectLogs(hand) {
   if (!hand) return;
   // Selection is intentionally trigger-only. X/Y/A/grip are reserved for other VR controls.
-  hand.addEventListener("triggerdown", () => logSelectAttempt(hand, "triggerdown"));
+  hand.addEventListener("triggerdown", () => {
+    const button = logSelectAttempt(hand, "triggerdown");
+    activateMenuButton(button);
+  });
 }
 
 function applyMenuVisibility() {

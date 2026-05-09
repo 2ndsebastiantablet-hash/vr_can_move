@@ -1,4 +1,4 @@
-name = "vr-can-move-multiplayer"
+name = "vr-can-move"
 main = "backend/server.js"
 compatibility_date = "2026-05-09"
 

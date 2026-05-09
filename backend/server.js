@@ -80,24 +80,23 @@ function shouldServeFrontend(request, pathname) {
   if (pathname.startsWith("/api/") || pathname === "/ws" || isProtectedStaticPath(pathname)) return false;
   return isKnownStaticAsset(pathname) || isBrowserRoute(pathname);
 }
+function assetRequest(request, assetPath) {
+  const assetUrl = new URL(request.url);
+  assetUrl.pathname = assetPath;
+  if (assetPath === "/") assetUrl.search = "";
+  return new Request(assetUrl, request);
+}
 async function serveFrontend(request, env, url, origin) {
   if (!env.ASSETS) {
     return json({ ok: false, error: "Static assets are not configured for this Worker." }, 500, origin);
   }
 
-  const explicitAsset = isKnownStaticAsset(url.pathname);
-  const assetPath = explicitAsset ? (url.pathname === "/" ? "/index.html" : url.pathname) : "/index.html";
-  const assetUrl = new URL(request.url);
-  assetUrl.pathname = assetPath;
-  if (assetPath === "/index.html") assetUrl.search = "";
+  const appShell = url.pathname === "/" || url.pathname === "/index.html" || !isKnownStaticAsset(url.pathname);
+  const assetPath = appShell ? "/" : url.pathname;
+  const response = await env.ASSETS.fetch(assetRequest(request, assetPath));
+  if (response.status !== 404 || !appShell) return response;
 
-  const response = await env.ASSETS.fetch(new Request(assetUrl, request));
-  if (response.status !== 404 || explicitAsset) return response;
-
-  const fallbackUrl = new URL(request.url);
-  fallbackUrl.pathname = "/index.html";
-  fallbackUrl.search = "";
-  return env.ASSETS.fetch(new Request(fallbackUrl, request));
+  return env.ASSETS.fetch(assetRequest(request, "/"));
 }
 
 class LobbyService {

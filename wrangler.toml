@@ -1,0 +1,20 @@
+name = "vr-can-move-multiplayer"
+main = "backend/server.js"
+compatibility_date = "2026-05-09"
+
+[durable_objects]
+bindings = [
+  { name = "LOBBY_DIRECTORY", class_name = "LobbyDirectory" },
+  { name = "GAME_ROOM", class_name = "GameRoom" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["LobbyDirectory", "GameRoom"]
+
+[vars]
+ALLOWED_ORIGIN = "*"
+IDLE_TIMEOUT_MS = "50000"
+RECONNECT_GRACE_MS = "20000"
+CLEANUP_INTERVAL_MS = "5000"
+MAX_PLAYERS_PER_LOBBY = "12"

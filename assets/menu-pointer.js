@@ -169,13 +169,8 @@ function logSelectAttempt(hand, eventName) {
 
 function setupControllerSelectLogs(hand) {
   if (!hand) return;
-  for (const eventName of ["triggerdown", "abuttondown", "xbuttondown"]) {
-    hand.addEventListener(eventName, () => logSelectAttempt(hand, eventName));
-  }
-  hand.addEventListener("gripdown", () => {
-    const button = logSelectAttempt(hand, "gripdown");
-    if (button) button.click();
-  });
+  // Selection is intentionally trigger-only. X/Y/A/grip are reserved for other VR controls.
+  hand.addEventListener("triggerdown", () => logSelectAttempt(hand, "triggerdown"));
 }
 
 function applyMenuVisibility() {

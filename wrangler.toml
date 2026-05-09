@@ -2,6 +2,11 @@ name = "vr-can-move-multiplayer"
 main = "backend/server.js"
 compatibility_date = "2026-05-09"
 
+[assets]
+directory = "."
+binding = "ASSETS"
+run_worker_first = true
+
 [durable_objects]
 bindings = [
   { name = "LOBBY_DIRECTORY", class_name = "LobbyDirectory" },
